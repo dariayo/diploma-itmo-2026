@@ -1,0 +1,190 @@
+.pilot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--line);
+    border-radius: var(--border-radius);
+    padding: 10px;
+}
+/* Pilot ranking list */
+.pilot-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pilot-card {
+    width: 310px;
+    height: 88px;
+    border-radius: 8px;
+    gap: 8px;
+    opacity: 1;
+    border-width: 1px;
+    padding: 15px 23px;
+
+}
+
+
+.pilot-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.pilot-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.pilot-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.pilot-sub {
+    font-size: 12px;
+    color: #9aa19a;
+    margin-top: 4px;
+}
+
+
+.pilot-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.pilot-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pilot-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.pilot-sub {
+    font-size: 12px;
+    color: #9aa19a;
+    margin-top: 4px;
+}
+
+.pilot .badge {
+    background: #10b981;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+
+.rating-card .pilot.card {
+    box-shadow: 0 0 0 1px rgba(30, 64, 175, 0.08) inset;
+}
+
+.rating-card .pilot.card .badge {
+    background: #eab308; /* по макету — жёлтая плашка для значений */
+    color: #111827;
+}
+
+.rating-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-radius: 10px;
+
+}
+
+
+.rating-item.first {
+    background: #FFE797;
+    border: 1px solid #CC9329
+}
+
+.rating-item.second {
+    background: #E3E3E3;
+    border: 1px solid #CBD5E1
+}
+
+.rating-item.third {
+    background: #FFEAD2;
+    border: 1px solid #AD895F
+}
+
+
+.rating-left .pilot-id {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.rating-left .pilot-sub {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.rating-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+.percent-pill {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+
+.percent-pill.gold {
+    background: #fde047;
+    color: #111827;
+}
+
+.percent-pill.silver {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.percent-pill.bronze {
+    background: #fed7aa;
+    color: #111827;
+}
+
+.percent-pill.neutral {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+
+.rating-item.worst-regular {
+    border: 1px solid #D02828;
+    background: #FFE3E3;
+}
+
+
