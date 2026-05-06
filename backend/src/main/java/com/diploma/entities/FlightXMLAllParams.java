@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @Immutable
 @Entity
-@Table(name = "flightxml_allparams", schema = "dbo")
+@Table(name = "pilot_flight_source", schema = "dbo")
 @AllArgsConstructor
 @NoArgsConstructor
 public class FlightXMLAllParams {

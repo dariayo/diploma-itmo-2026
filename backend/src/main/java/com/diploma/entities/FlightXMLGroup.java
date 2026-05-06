@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @Data
 @Entity
-@Table(name = "flight_description", schema = "dbo")
+@Table(name = "pilot_flight_metrics", schema = "dbo")
 @NoArgsConstructor
 public class FlightXMLGroup {
     @Id

@@ -19,7 +19,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "mainpilot_groupdt", schema = "dbo")
+@Table(name = "pilot_period_aggregates", schema = "dbo")
 @NoArgsConstructor
 public class MainPilotGroupDt {
     @Id
