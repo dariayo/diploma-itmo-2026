@@ -119,9 +119,9 @@ public class PilotStatsService {
                 List<PilotStats> pilotStats = mapper.readValue(group.getPilots(), new TypeReference<List<PilotStats>>() {
                 });
                 for (PilotStats pilot : pilotStats) {
-                    double rating = pilot.getTotalEfficiency() / pilot.getFlightCount() * pilot.getDifficultFlight() * pilot.getFlightHours();
+                    double rating = calculatePilotRating(pilot);
                     if (pilot.getPilotRating() == null) {
-                        pilot.setPilotRating(pilot.getTotalEfficiency() / pilot.getFlightCount() * pilot.getDifficultFlight() * pilot.getFlightHours());
+                        pilot.setPilotRating(rating);
                     } else {
                         pilot.setPilotRating(pilot.getPilotRating() + rating);
                     }
@@ -163,6 +163,18 @@ public class PilotStatsService {
         double avgEfficiency = totalFlight > 0 ? totalEfficiency / totalFlight : 0;
 
         return new PilotStatsResponse(longRankedPilots, avgEfficiency, totalFlightHours);
+    }
+
+    private double calculatePilotRating(PilotStats pilot) {
+        if (pilot.getFlightCount() <= 0) {
+            return 0.0;
+        }
+        double averageEfficiency = pilot.getTotalEfficiency() / pilot.getFlightCount();
+        double difficulty = pilot.getDifficultFlight() != null ? pilot.getDifficultFlight() : 1.0;
+        double flightHours = pilot.getFlightHours();
+        double workloadCoefficient = difficulty * flightHours;
+
+        return averageEfficiency * workloadCoefficient;
     }
 
     public PilotStatsResponse getPilotStatsFromGroupDtByRoutes(LocalDate startDate, LocalDate endDate, List<String> routes) throws JsonProcessingException {
