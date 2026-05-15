@@ -32,7 +32,7 @@ public class PunctualityCalculator implements Calculator {
         if (timeData.getDTAOBT().isAfter(timeData.getDTAD())) {
             String reason = mrshrRepository.findDelayTakeById(id);
             if (pilotFault(reason)) {
-                long minutes = Duration.between(timeData.getDTAOBT(), timeData.getDTAD()).toMinutes();
+                long minutes = Duration.between(timeData.getDTAD(), timeData.getDTAOBT()).toMinutes();
                 double fee = feeCalcTake(minutes);
                 System.out.println("пунктуальность до: "+minutes+fee);
                 delayFee += fee;
@@ -41,7 +41,7 @@ public class PunctualityCalculator implements Calculator {
         if (timeData.getDTATA().isAfter(timeData.getDTAA())) {
             String reason = mrshrRepository.findDelayArrById(id);
             if (pilotFault(reason)) {
-                long minutes = Duration.between(timeData.getDTATA(), timeData.getDTAA()).toMinutes();
+                long minutes = Duration.between(timeData.getDTAA(), timeData.getDTATA()).toMinutes();
                 double fee = feeCalcArr(minutes);
                 System.out.println("пунктуальность после: "+minutes+fee);
                 delayFee += fee;

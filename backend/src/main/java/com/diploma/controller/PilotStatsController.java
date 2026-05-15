@@ -80,14 +80,4 @@ public class PilotStatsController {
         return ResponseEntity.ok(stats);
     }
 
-    @GetMapping("/efficiency-trend")
-    public ResponseEntity<Map<String, List<Object>>> getEfficiencyTrend(
-            @RequestParam(required = false) Integer months,
-            @RequestParam(defaultValue = "10") int limit) {
-
-        int monthsToShow = months != null ? months : 6;
-        Map<String, List<Object>> trend = pilotStatsService.getEfficiencyTrend(monthsToShow, limit);
-        return ResponseEntity.ok(trend);
-    }
-
 }
