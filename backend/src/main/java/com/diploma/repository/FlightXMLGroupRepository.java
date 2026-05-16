@@ -17,5 +17,8 @@ public interface FlightXMLGroupRepository extends JpaRepository<FlightXMLGroup, 
     @Query("SELECT distinct f.tabNo FROM FlightXMLGroup f where f.date >= :startDt and f.date <= :endDt and (:routes is null or f.route IN :routes)")
     List<Integer> findTabNosByDtAndRoutes(@Param("routes") List<String> routes, @Param("startDt") LocalDateTime startDt, @Param("endDt") LocalDateTime endDt);
 
+    @Query("SELECT distinct f.route FROM FlightXMLGroup f WHERE f.route IS NOT NULL ORDER BY f.route")
+    List<String> findDistinctRoutes();
+
     long count();
 }

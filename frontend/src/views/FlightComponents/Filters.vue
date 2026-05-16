@@ -113,12 +113,24 @@ export default {
             "Content-Type": "application/json"
           },
         });
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки маршрутов: ${response.status}`);
+        }
+
         const text = await response.text();
-        const optionsArray = text
-            .replace(/[$$]/g, '') // Remove unwanted characters
-            .split(',')
-        const options = optionsArray.splice(1, optionsArray.length - 2)
-            .map(line => line.trim().replace(/"/g, '').replace(/→/g, ' → '))
+        let options = [];
+
+        try {
+          const parsed = JSON.parse(text);
+          options = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          options = text
+              .replace(/[\[\]]/g, '')
+              .split(',');
+        }
+
+        options = options
+            .map(line => String(line).trim().replace(/"/g, '').replace(/\s*→\s*/g, ' → '))
             .filter(line => line !== '');
 
         options.push('SVO → GOJ')
