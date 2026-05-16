@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import com.diploma.models.Airport;
 import com.diploma.models.characteristics.TimeCharacteristics;
+import com.diploma.entities.PilotWeatherSnapshot;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @RequiredArgsConstructor
@@ -18,6 +20,7 @@ public class CalculateData {
     private double distance;
     private TimeCharacteristics td;
     private String weatherData;
+    private List<PilotWeatherSnapshot> weatherSnapshots;
     private double fuelEff;
     private Airport from;
     private Airport to;
@@ -33,4 +36,3 @@ public class CalculateData {
                 '}';
     }
 }
-

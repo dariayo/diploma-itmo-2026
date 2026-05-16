@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.diploma.processor.FlightDataProcessor;
 import com.diploma.models.flights.FlightFactor;
 
@@ -39,6 +40,7 @@ public class PilotStatsService {
     private final FlightXMLGroupRepository flightXMLGroupRepository;
 
     @Cacheable(value = "pilotStats", key = "#startDate.toString() + '-' + #endDate.toString()")
+    @Transactional(readOnly = true)
     public PilotStatsResponse getPilotStats(LocalDate startDate, LocalDate endDate) {
 
         List<FlightXMLAllParams> flights = flightService.getByRangeWithoutNulls(startDate, endDate);
@@ -68,7 +70,7 @@ public class PilotStatsService {
                         FlightFactor general = factors.get(0);
                         Integer tabNo = general.getTab();
                         if (tabNo != null) {
-                            PilotStats stats = pilotStatsMap.getOrDefault(tabNo, new PilotStats(tabNo, general.getCaptain(), 0, 0.0, 0));
+                            PilotStats stats = pilotStatsMap.getOrDefault(tabNo, new PilotStats(tabNo, resolveCaptainName(flightXML, general.getCaptain()), 0, 0.0, 0));
                             String efficiencyStr = factors.get(factors.size() - 3).getFuelEfficiency();
                             if (efficiencyStr != null) {
                                 double efficiency = parseEfficiency(efficiencyStr);
@@ -102,6 +104,13 @@ public class PilotStatsService {
         double avgEfficiency = totalFlight > 0 ? totalEfficiency / totalFlight : 0;
 
         return new PilotStatsResponse(longRankedPilots, avgEfficiency, totalFlightHours);
+    }
+
+    private String resolveCaptainName(FlightXMLAllParams flightXML, String fallbackCaptainName) {
+        if (flightXML.getPilot() != null && flightXML.getPilot().getFullName() != null && !flightXML.getPilot().getFullName().isBlank()) {
+            return flightXML.getPilot().getFullName();
+        }
+        return fallbackCaptainName;
     }
 
     public PilotStatsResponse getPilotStatsFromGroupDt(LocalDate startDate, LocalDate endDate) throws JsonProcessingException {

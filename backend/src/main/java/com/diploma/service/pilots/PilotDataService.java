@@ -9,8 +9,10 @@ import com.diploma.parser.Parser;
 import com.diploma.entities.*;
 import com.diploma.models.*;
 import com.diploma.repository.ApprovedTimesRepository;
+import com.diploma.repository.PilotWeatherSnapshotRepository;
 import com.diploma.service.flights.FlightXMLAllParamsService;
 import com.diploma.dto.CalculateData;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -27,7 +29,9 @@ public class PilotDataService {
     private final Parser parser;
     private final PilotEfficiencyCalculator pilotEfficiencyCalculator;
     private final ApprovedTimesRepository approvedTimesRepository;
+    private final PilotWeatherSnapshotRepository pilotWeatherSnapshotRepository;
 
+    @Transactional(readOnly = true)
     public List<FlightEff> getPilotData(int tabNo, LocalDate startDate, LocalDate endDate) throws IOException {
 
         List<FlightXMLAllParams> flights = flightXMLAllParamsService.getByDateRangeAndTabNo(startDate.atStartOfDay(), endDate.atStartOfDay().plusDays(1), tabNo);
@@ -53,7 +57,7 @@ public class PilotDataService {
                         tabNo(tabNo).
                         flightNumber(flight.getNr()).
                         route(flight.getRoute()).
-                        typeMod(f.type_mod).
+                        typeMod(resolveAircraftType(flight, f)).
                         fuelEff(flight.getFuel_eff()).
                         season(getSeason(timeCharacteristics.getDTVO().toString())).
                         dateTime(flight.getDk()).
@@ -71,15 +75,30 @@ public class PilotDataService {
         cd.setId_mrshr(flight.getIdmrshr());
         cd.setTd(timeCharacteristics);
         cd.setWeatherData(flight.getMeteo());
+        cd.setWeatherSnapshots(pilotWeatherSnapshotRepository.findBySourceFlightId(flight.getIdmrshr()));
         cd.setDateTime(flight.getDTVO());
         cd.setFrom(new Airport(f.iata1, f.icao1, Double.parseDouble(f.lat1), Double.parseDouble(f.lon1)));
 //        cd.setFrom(new Airport(f.iata1, f.icao1, 0.0, 0.0));
         cd.setTo(new Airport(f.iata2, f.icao2, Double.parseDouble(f.lat2), Double.parseDouble(f.lon2)));
 //        cd.setTo(new Airport(f.iata2, f.icao2, 0.0, 0.0));
-        cd.setDistance(f.fullNavLog.fullNavLogCommon.getDistance());
-        cd.setTypeMod(f.type_mod);
+        cd.setDistance(resolveRouteDistance(flight, f));
+        cd.setTypeMod(resolveAircraftType(flight, f));
         cd.setFuelEff(flight.getFuel_eff());
         return cd;
+    }
+
+    private double resolveRouteDistance(FlightXMLAllParams flight, Flight parsedFlight) {
+        if (flight.getRouteInfo() != null && flight.getRouteInfo().getDistanceNm() != null) {
+            return flight.getRouteInfo().getDistanceNm();
+        }
+        return parsedFlight.fullNavLog.fullNavLogCommon.getDistance();
+    }
+
+    private String resolveAircraftType(FlightXMLAllParams flight, Flight parsedFlight) {
+        if (flight.getAircraft() != null && flight.getAircraft().getAircraftType() != null) {
+            return flight.getAircraft().getAircraftType();
+        }
+        return parsedFlight.type_mod;
     }
 
     public double calculateFlightHours(Flight flight) {
@@ -93,4 +112,3 @@ public class PilotDataService {
     }
 
 }
-
