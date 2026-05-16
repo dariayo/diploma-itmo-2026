@@ -85,6 +85,18 @@ public class FlightXMLAllParams {
 
     private Integer tabNo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tabNo", referencedColumnName = "tab_no", insertable = false, updatable = false)
+    private PilotDirectory pilot;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route", referencedColumnName = "route_code", insertable = false, updatable = false)
+    private RouteDirectory routeInfo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ts", referencedColumnName = "aircraft_type", insertable = false, updatable = false)
+    private AircraftDirectory aircraft;
+
     @Column()
     private int vzr;
 
@@ -112,6 +124,4 @@ public class FlightXMLAllParams {
 
     private Double fuel_price_rub;
 }
-
-
 

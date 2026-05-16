@@ -38,8 +38,16 @@ public class FlightXMLGroup {
     private String isStraighteningROV;
     @Column(name = "percent_pyld")
     private Double percentPYLD;
-    @Column(name = "tab_no")
     private Integer tabNo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tabNo", referencedColumnName = "tab_no", insertable = false, updatable = false)
+    private PilotDirectory pilot;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route", referencedColumnName = "route_code", insertable = false, updatable = false)
+    private RouteDirectory routeInfo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ts", referencedColumnName = "aircraft_type", insertable = false, updatable = false)
+    private AircraftDirectory aircraft;
     @Column(name = "planned_departure_taxi_time")
     private Integer plannedDepartureTaxiTime;
     @Column(name = "planned_arrival_taxi_time")
