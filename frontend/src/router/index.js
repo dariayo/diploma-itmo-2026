@@ -18,11 +18,6 @@ const routes = [
         component: PilotEfficiency,
         props: true
     },
-    {
-        path: '/pilotcompare',
-        name: 'PilotCompare',
-        component: PilotCompare
-    },
 ];
 
 const router = createRouter({

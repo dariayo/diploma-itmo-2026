@@ -1,6 +1,5 @@
 package com.diploma.util;
 
-import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
@@ -9,233 +8,309 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Set;
 
 import static java.lang.Math.*;
 
 @Component
-@RequiredArgsConstructor
 @SuppressWarnings("PMD")
 public class SolarisUtils {
+    private static final double DEGREES_IN_RADIAN = 57.29578;
+    private static final double FULL_CIRCLE = 6.2831852;
+    private static final double EARTH_ORBIT_STEP = 0.01720279;
+    private static final double MEAN_ANOMALY_SHIFT = 0.065674294;
+    private static final double ORBIT_ECCENTRICITY = 0.016718;
+    private static final double SOLAR_LONGITUDE_SHIFT = 4.9322375;
+    private static final double EARTH_AXIS_SIN = 0.39781868;
+    private static final double SUNRISE_ZENITH_COS = -0.014834754;
+    private static final double TWILIGHT_ZENITH_COS = -0.10452845;
+    private static final double HOURS_PER_DAY = 24.0;
+    private static final double DEGREES_PER_HOUR = 15.0;
+    private static final int YEAR_BASE = 1980;
+
+    private static final Set<Integer> COLD_SEASON_MONTHS = Set.of(1, 2, 3, 10, 11, 12);
+    private static final Set<Integer> WARM_SEASON_MONTHS = Set.of(4, 5, 6, 7, 8, 9);
+
     /**
-     * Метод расчета всех моментов естественного освещения на указанную дату. Обычно не нужен напрямую.
-     * @param baseDate дата (UTC) для которой должен быть произведен расчет. ВременнАя часть отсекается.
-     * @param lat - широта точки, для которой должен быть произведен расчет
-     * @param lon - долгота точки, для которой должен быть произведен расчет.
-     * @return моменты естественного освещения (рассвет-восход-закат-темнота) для указанных координат в указанных сутках.
+     * Рассчитывает ключевые моменты естественного освещения для заданной даты и координат.
+     *
+     * @param baseDate дата в UTC, временная часть используется только для определения суток
+     * @param latitude широта точки
+     * @param longitude долгота точки
+     * @return моменты рассвета, восхода, заката и наступления темноты
      */
     @Contract("_, _, _ -> new")
-    public @NotNull SolarisMoments calculate(Instant baseDate, double lat, double lon) {
+    public @NotNull SolarisMoments calculate(Instant baseDate, double latitude, double longitude) {
+        LocalDate date = LocalDate.ofInstant(baseDate, ZoneOffset.UTC);
+        double latitudeRad = toRadiansLegacy(latitude);
+        double longitudeRad = toRadiansLegacy(longitude);
 
-        lat = lat / 57.29578;
-        lon = lon / 57.29578;
+        int dayNumber = calculateDayNumber(date);
+        double solarDay = dayNumber - longitudeRad / FULL_CIRCLE + 0.5;
+        SolarPosition position = calculateSolarPosition(solarDay);
 
-        LocalDate dt = LocalDate.ofInstant(baseDate, ZoneOffset.UTC);
+        LightCalculation calculation = calculateLightMoments(latitudeRad, longitudeRad, position);
+        SolarisMoments moments = toInstants(baseDate, calculation);
+        return normalizeForLongitude(moments, longitudeRad, date.getMonthValue());
+    }
 
-        int yy = dt.getYear();
-        int mm = dt.getMonthValue();
-        int dd = dt.getDayOfMonth();
+    private int calculateDayNumber(LocalDate date) {
+        int yearsFromBase = date.getYear() - YEAR_BASE;
+        int leapCycles = yearsFromBase / 4;
+        int dayNumber = yearsFromBase * 365 + leapCycles;
 
-        int ndel = yy - 1980;
-        int kvis = ndel / 4; // целочисленное деление
-        int nday = ndel * 365 + kvis;
-        int kcel = kvis * 4;
-
-        if (kcel == ndel) {
-            if (mm > 2)
-                nday++;
-        } else
-            nday++;
-
-        switch (mm) {
-            case 2 -> nday = nday + 31;
-            case 3 -> nday = nday + 59;
-            case 4 -> nday = nday + 90;
-            case 5 -> nday = nday + 120;
-            case 6 -> nday = nday + 151;
-            case 7 -> nday = nday + 181;
-            case 8 -> nday = nday + 212;
-            case 9 -> nday = nday + 242;
-            case 10 -> nday = nday + 273;
-            case 11 -> nday = nday + 304;
-            case 12 -> nday = nday + 334;
-        }
-        nday = nday + dd;
-
-        double day = nday - (lon / 6.2831852) + 0.5;
-
-        // Средняя аномалия
-        double anom = 0.01720279 * day - 0.065674294;
-
-        while ((anom - 6.2831852) >= 0)
-            anom = anom - 6.2831852;
-
-        double e = anom;
-        boolean _ok = false;
-        double del = 0;
-        int i = 0;
-        while (true) {
-            if (_ok) {
-                double de = del / (1 - 0.016718 * cos(e));
-                e = e - de;
-            }
-            del = e - 0.016718 * sin(e) - anom;
-            _ok = true;
-            if (((Math.abs(del) - 1E-6) > 0) || (del < 9E-23))
-                break;
-
-            i++;
-            if (i > 10000)
-                break;
-        }
-
-        // Истиная аномалия
-        double anomi = 2 * atan(1.01686 * tan(e / 2));
-        double dsol = anomi + 4.9322375;
-
-        // Склонение солнца, рад
-        double skl = asin(0.39781868 * sin(dsol));
-
-        double tv = 0;
-        double tz = 0;
-        double tkt = 0;
-        double tnt = 0;
-        double x = sin(lat) * sin(skl);
-        double y = cos(lat) * cos(skl);
-
-        //Косинусы числовых углов
-        double ct1 = (-0.014834754 - x) / y;
-        double ct2 = (-0.10452845 - x) / y;
-
-        double dg = 0;
-        double uv = 0;
-        double ntv;
-        double ntz;
-        double ntkt;
-        double ntnt;
-
-        if ((ct1 + 1) >= 0) {
-            if ((ct1 - 1) <= 0) {
-                double t1g = acos(ct1) * 57.29578;
-                dg = lon * 57.29578;
-                // Время захода/восхода ист, час
-                double tvich = 12 - (t1g + dg) / 15.0;
-                double tzich = 12 + (t1g - dg) / 15.0;
-
-                //Уравнение времени, час
-                uv = 0.12833333 * sin(dsol + 4.5204026) + 0.165 * sin(2 * dsol);
-
-                //Время восх/зах среднее, час
-                double tvsch = tvich - uv;
-                double tzsch = tzich - uv;
-
-                if (tvsch < 0)
-                    tvsch = tvsch + 24;
-                if (tvsch > 24)
-                    tvsch = tvsch - 24;
-                if (tzsch < 0)
-                    tzsch = tzsch + 24;
-                if (tzsch > 24)
-                    tzsch = tzsch - 24;
-
-                ntv = Math.floor(tvsch);
-                tv = (tvsch - ntv) * 60d;
-                ntz = Math.floor(tzsch);
-                tz = (tzsch - ntz) * 60;
-            } else {
-                ntv = 70;
-                ntz = 90;
-            }
-
-            if ((ct2 + 1) >= 0) {
-                if ((ct2 - 1) <= 0) {
-                    double t2g = acos(ct2) * 57.29578;
-                    // Время конца/нач темноты, час
-                    double tktich = 12 - (t2g + dg) / 15.0;
-                    double tntich = 12 + (t2g - dg) / 15.0;
-
-                    double tktsch = tktich - uv;
-                    double tntsch = tntich - uv;
-
-                    if (tktsch < 0)
-                        tktsch = tktsch + 24;
-                    if (tktsch > 24)
-                        tktsch = tktsch - 24;
-
-                    if (tntsch < 0)
-                        tntsch = tntsch + 24;
-                    if (tntsch > 24)
-                        tntsch = tntsch - 24;
-
-                    ntkt = Math.floor(tktsch);
-                    tkt = (tktsch - ntkt) * 60;
-
-                    ntnt = Math.floor(tntsch);
-                    tnt = (tntsch - ntnt) * 60;
-                } else {
-                    ntkt = 60;
-                    ntnt = 60;
-                }
-            } else {
-                ntkt = 60;
-                ntnt = 60;
+        if (leapCycles * 4 == yearsFromBase) {
+            if (date.getMonthValue() > 2) {
+                dayNumber++;
             }
         } else {
-            ntz = 80;
-            ntv = 90;
-            ntkt = 90;
-            ntnt = 90;
+            dayNumber++;
         }
 
-        if (tv == 60)
-            tv = 0;
-        if (tz == 60)
-            tz = 0;
-        if (tkt == 60)
-            tkt = 0;
-        if (tnt == 60)
-            tnt = 0;
+        return dayNumber + daysBeforeMonth(date.getMonthValue()) + date.getDayOfMonth();
+    }
 
-        Instant dawn = baseDate.truncatedTo(ChronoUnit.DAYS)
-                .plus(Math.round(ntkt * 60 * 60), ChronoUnit.SECONDS)
-                .plus(Math.round(tkt * 60), ChronoUnit.SECONDS);
-        Instant sunrise = baseDate.truncatedTo(ChronoUnit.DAYS)
-                .plus(Math.round(ntv * 60 * 60), ChronoUnit.SECONDS)
-                .plus(Math.round(tv * 60), ChronoUnit.SECONDS);
-        Instant sunset = baseDate.truncatedTo(ChronoUnit.DAYS)
-                .plus(Math.round(ntz * 60 * 60), ChronoUnit.SECONDS)
-                .plus(Math.round(tz * 60), ChronoUnit.SECONDS);
-        Instant dark = baseDate.truncatedTo(ChronoUnit.DAYS)
-                .plus(Math.round(ntnt * 60 * 60), ChronoUnit.SECONDS)
-                .plus(Math.round(tnt * 60), ChronoUnit.SECONDS);
+    private int daysBeforeMonth(int month) {
+        return switch (month) {
+            case 2 -> 31;
+            case 3 -> 59;
+            case 4 -> 90;
+            case 5 -> 120;
+            case 6 -> 151;
+            case 7 -> 181;
+            case 8 -> 212;
+            case 9 -> 242;
+            case 10 -> 273;
+            case 11 -> 304;
+            case 12 -> 334;
+            default -> 0;
+        };
+    }
 
-        if (lon > 0) {
-            if (dawn.compareTo(dark) != 0) {
-                if (dawn.isAfter(dark))
-                    dawn = dawn.minus(1, ChronoUnit.DAYS);
-                if (sunrise.isAfter(dark))
-                    sunrise = sunrise.minus(1, ChronoUnit.DAYS);
-                if (sunset.isAfter(dark))
-                    sunset = sunset.minus(1, ChronoUnit.DAYS);
-            } else if (sunrise.isAfter(sunset) && (sunrise.compareTo(dawn) != 0))
-                sunrise = sunrise.minus(1, ChronoUnit.DAYS);
+    private SolarPosition calculateSolarPosition(double solarDay) {
+        double meanAnomaly = normalizeAngle(EARTH_ORBIT_STEP * solarDay - MEAN_ANOMALY_SHIFT);
+        double eccentricAnomaly = solveEccentricAnomaly(meanAnomaly);
+        double trueAnomaly = 2 * atan(1.01686 * tan(eccentricAnomaly / 2));
+        double solarLongitude = trueAnomaly + SOLAR_LONGITUDE_SHIFT;
+        double declination = asin(EARTH_AXIS_SIN * sin(solarLongitude));
+        double equationOfTime = 0.12833333 * sin(solarLongitude + 4.5204026)
+                + 0.165 * sin(2 * solarLongitude);
+
+        return new SolarPosition(declination, equationOfTime);
+    }
+
+    private double solveEccentricAnomaly(double meanAnomaly) {
+        double eccentricAnomaly = meanAnomaly;
+        double delta = 0.0;
+        boolean hasPreviousDelta = false;
+
+        for (int iteration = 0; iteration <= 10_000; iteration++) {
+            if (hasPreviousDelta) {
+                double correction = delta / (1 - ORBIT_ECCENTRICITY * cos(eccentricAnomaly));
+                eccentricAnomaly -= correction;
+            }
+
+            delta = eccentricAnomaly - ORBIT_ECCENTRICITY * sin(eccentricAnomaly) - meanAnomaly;
+            hasPreviousDelta = true;
+
+            if (abs(delta) > 1E-6 || delta < 9E-23) {
+                break;
+            }
         }
 
-        int sun = 0;
-        int light = 0;
-        if (sunset.isAfter(dark))
-            sun = -1;
-        else if (sunrise.compareTo(dawn) == 0)
-            sun = 1;
+        return eccentricAnomaly;
+    }
 
-        if ((dawn.compareTo(dark) == 0) && Set.of(1, 2, 3, 10, 11, 12).contains(mm))
-            light = -1;
-        else if ((dawn.compareTo(dark) == 0) && Set.of(4, 5, 6, 7, 8, 9).contains(mm))
-            light = 1;
+    private LightCalculation calculateLightMoments(
+            double latitudeRad,
+            double longitudeRad,
+            SolarPosition position
+    ) {
+        double sunProjection = sin(latitudeRad) * sin(position.declination());
+        double horizonProjection = cos(latitudeRad) * cos(position.declination());
+        double sunriseCos = (SUNRISE_ZENITH_COS - sunProjection) / horizonProjection;
+        double twilightCos = (TWILIGHT_ZENITH_COS - sunProjection) / horizonProjection;
+
+        if (sunriseCos < -1) {
+            return new LightCalculation(
+                    MinuteOfDay.special(90),
+                    MinuteOfDay.special(90),
+                    MinuteOfDay.special(80),
+                    MinuteOfDay.special(90)
+            );
+        }
+
+        if (sunriseCos > 1) {
+            DayPeriod twilightPeriod = inCosineRange(twilightCos)
+                    ? calculatePeriod(twilightCos, 0, 0)
+                    : DayPeriod.special(60);
+
+            return new LightCalculation(
+                    twilightPeriod.start(),
+                    MinuteOfDay.special(70),
+                    MinuteOfDay.special(90),
+                    twilightPeriod.end()
+            );
+        }
+
+        double longitudeDeg = longitudeRad * DEGREES_IN_RADIAN;
+        DayPeriod sunPeriod = calculatePeriod(sunriseCos, longitudeDeg, position.equationOfTime());
+        DayPeriod twilightPeriod = inCosineRange(twilightCos)
+                ? calculatePeriod(twilightCos, longitudeDeg, position.equationOfTime())
+                : DayPeriod.special(60);
+
+        return new LightCalculation(
+                twilightPeriod.start(),
+                sunPeriod.start(),
+                sunPeriod.end(),
+                twilightPeriod.end()
+        );
+    }
+
+    private DayPeriod calculatePeriod(double angleCos, double longitudeDeg, double equationOfTime) {
+        double angleDeg = acos(angleCos) * DEGREES_IN_RADIAN;
+
+        double startTrueTime = 12 - (angleDeg + longitudeDeg) / DEGREES_PER_HOUR;
+        double endTrueTime = 12 + (angleDeg - longitudeDeg) / DEGREES_PER_HOUR;
+
+        return new DayPeriod(
+                MinuteOfDay.fromHours(startTrueTime - equationOfTime),
+                MinuteOfDay.fromHours(endTrueTime - equationOfTime)
+        );
+    }
+
+    private SolarisMoments toInstants(Instant baseDate, LightCalculation calculation) {
+        Instant dayStart = baseDate.truncatedTo(ChronoUnit.DAYS);
 
         return new SolarisMoments(
-                dawn, sunrise, sunset, dark, light, sun
+                calculation.dawn().toInstant(dayStart),
+                calculation.sunrise().toInstant(dayStart),
+                calculation.sunset().toInstant(dayStart),
+                calculation.dark().toInstant(dayStart),
+                0,
+                0
         );
+    }
+
+    private SolarisMoments normalizeForLongitude(SolarisMoments moments, double longitudeRad, int month) {
+        Instant dawn = moments.dawn();
+        Instant sunrise = moments.sunrise();
+        Instant sunset = moments.sunset();
+        Instant dark = moments.dark();
+
+        if (longitudeRad > 0) {
+            if (!dawn.equals(dark)) {
+                if (dawn.isAfter(dark)) {
+                    dawn = dawn.minus(1, ChronoUnit.DAYS);
+                }
+                if (sunrise.isAfter(dark)) {
+                    sunrise = sunrise.minus(1, ChronoUnit.DAYS);
+                }
+                if (sunset.isAfter(dark)) {
+                    sunset = sunset.minus(1, ChronoUnit.DAYS);
+                }
+            } else if (sunrise.isAfter(sunset) && !sunrise.equals(dawn)) {
+                sunrise = sunrise.minus(1, ChronoUnit.DAYS);
+            }
+        }
+
+        int sun = defineSunState(dawn, sunrise, sunset, dark);
+        int light = defineLightState(dawn, dark, month);
+
+        return new SolarisMoments(dawn, sunrise, sunset, dark, light, sun);
+    }
+
+    private int defineSunState(Instant dawn, Instant sunrise, Instant sunset, Instant dark) {
+        if (sunset.isAfter(dark)) {
+            return -1;
+        }
+        if (sunrise.equals(dawn)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private int defineLightState(Instant dawn, Instant dark, int month) {
+        if (!dawn.equals(dark)) {
+            return 0;
+        }
+        if (COLD_SEASON_MONTHS.contains(month)) {
+            return -1;
+        }
+        if (WARM_SEASON_MONTHS.contains(month)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private boolean inCosineRange(double value) {
+        return value >= -1 && value <= 1;
+    }
+
+    private double normalizeAngle(double angle) {
+        double normalized = angle;
+        while (normalized >= FULL_CIRCLE) {
+            normalized -= FULL_CIRCLE;
+        }
+        return normalized;
+    }
+
+    private double toRadiansLegacy(double degrees) {
+        return degrees / DEGREES_IN_RADIAN;
+    }
+
+    private record SolarPosition(double declination, double equationOfTime) {
+    }
+
+    private record LightCalculation(
+            MinuteOfDay dawn,
+            MinuteOfDay sunrise,
+            MinuteOfDay sunset,
+            MinuteOfDay dark
+    ) {
+    }
+
+    private record DayPeriod(MinuteOfDay start, MinuteOfDay end) {
+        private static DayPeriod special(int hour) {
+            return new DayPeriod(MinuteOfDay.special(hour), MinuteOfDay.special(hour));
+        }
+    }
+
+    private record MinuteOfDay(double hour, double minute) {
+        private static MinuteOfDay fromHours(double hours) {
+            double normalizedHours = normalizeHours(hours);
+            double wholeHours = floor(normalizedHours);
+            double minutes = (normalizedHours - wholeHours) * 60.0;
+            return new MinuteOfDay(wholeHours, normalizeMinute(minutes));
+        }
+
+        private static MinuteOfDay special(double hour) {
+            return new MinuteOfDay(hour, 0);
+        }
+
+        private static MinuteOfDay zeroAt(double hour) {
+            return new MinuteOfDay(hour, 0);
+        }
+
+        private Instant toInstant(Instant dayStart) {
+            return dayStart
+                    .plus(Math.round(hour * 60 * 60), ChronoUnit.SECONDS)
+                    .plus(Math.round(minute * 60), ChronoUnit.SECONDS);
+        }
+
+        private static double normalizeHours(double hours) {
+            if (hours < 0) {
+                return hours + HOURS_PER_DAY;
+            }
+            if (hours > HOURS_PER_DAY) {
+                return hours - HOURS_PER_DAY;
+            }
+            return hours;
+        }
+
+        private static double normalizeMinute(double minute) {
+            return minute == 60 ? 0 : minute;
+        }
     }
 
     public enum LightTimeType {
@@ -250,7 +325,6 @@ public class SolarisUtils {
             int light,
             int sun
     ) {
-
     }
 
     public record TypedLightTime(
@@ -258,15 +332,11 @@ public class SolarisUtils {
             LightTimeType lightType,
             boolean isATOT,
             boolean isATL,
-
             int light,
             int sun
     ) {
-        Instant getDt(){
-            if (isLightTimeChanged())
-                return dtX;
-            else
-                return Instant.EPOCH;
+        Instant getDt() {
+            return isLightTimeChanged() ? dtX : Instant.EPOCH;
         }
 
         boolean isLightTimeChanged() {
@@ -276,5 +346,4 @@ public class SolarisUtils {
             };
         }
     }
-
 }
