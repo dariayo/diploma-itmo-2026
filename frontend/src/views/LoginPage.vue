@@ -18,7 +18,9 @@
             required
             :class="{ 'error-border': errorMessage }"
         />
-        <button type="submit">Войти</button>
+        <button type="submit" :disabled="loading">
+          {{ loading ? 'Вход...' : 'Войти' }}
+        </button>
       </form>
     </div>
     <div v-if="errorMessage" class="error-message">
@@ -29,16 +31,19 @@
 
 <script setup>
 import {ref} from 'vue';
-import {useRouter} from 'vue-router';
+import {useRoute, useRouter} from 'vue-router';
 import config from '../config.js';
 
 const username = ref('');
 const password = ref('');
 const errorMessage = ref('');
+const loading = ref(false);
 const router = useRouter();
+const route = useRoute();
 
 const handleLogin = async () => {
   errorMessage.value = '';
+  loading.value = true;
 
   try {
     const res = await fetch(`http://${config.apiBaseUrl}/auth/sign-in`, {
@@ -52,7 +57,7 @@ const handleLogin = async () => {
     });
 
     if (res.ok) {
-      await router.push('/');
+      await router.push(route.query.redirect?.toString() || '/pilots');
     } else {
       let errorText = '';
       try {
@@ -71,6 +76,8 @@ const handleLogin = async () => {
     }
   } catch (err) {
     errorMessage.value = 'Неверный логин или пароль';
+  } finally {
+    loading.value = false;
   }
 };
 </script>
@@ -195,5 +202,10 @@ button {
 
 button:hover {
   background-color: #1c3aaf;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 </style>

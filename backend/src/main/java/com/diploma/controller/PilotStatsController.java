@@ -13,7 +13,6 @@ import com.diploma.service.pilots.PilotStatsService;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/pilots")

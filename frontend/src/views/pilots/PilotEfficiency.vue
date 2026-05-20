@@ -224,7 +224,7 @@ const router = useRouter()
 const pilotId = computed(() => String(route.params.id || '—'))
 
 const tabInitial = computed(() =>
-    pilotId.value.replace(/\D/g, '').slice(-2) || pilotId.value.slice(0, 2) || '?',
+    pilotId.value.replace(/\D/g, ''),
 )
 
 function clampPct(value) {

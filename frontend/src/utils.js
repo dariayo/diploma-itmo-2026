@@ -1,8 +1,10 @@
 import config from './config.js';
 
+const API_ORIGIN = `http://${config.apiBaseUrl}`;
+
 export async function getCurrentUser() {
     try {
-        const res = await fetch(`http://${config.apiBaseUrl}/auth/me`, {
+        const res = await fetch(`${API_ORIGIN}/auth/me`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -19,7 +21,7 @@ export async function getCurrentUser() {
 
 export async function isAdmin() {
     try {
-        const res = await fetch(`http://${config.apiBaseUrl}/auth/check-admin`, {
+        const res = await fetch(`${API_ORIGIN}/auth/check-admin`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -32,7 +34,7 @@ export async function isAdmin() {
 
 export async function isAuthenticated() {
     try {
-        const res = await fetch(`http://${config.apiBaseUrl}/auth/protected-endpoint`, {
+        const res = await fetch(`${API_ORIGIN}/auth/protected-endpoint`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -43,14 +45,15 @@ export async function isAuthenticated() {
     }
 }
 
-import router from './router';
-
 const INACTIVITY_LIMIT = 60 * 60 * 1000;
 let inactivityTimer = null;
 
 function logoutDueToInactivity() {
-    document.cookie = "jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    router.push('/login');
+    fetch(`${API_ORIGIN}/auth/logout`, {method: 'POST', credentials: 'include'}).finally(() => {
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+        }
+    });
 }
 
 function resetInactivityTimer() {
@@ -60,8 +63,21 @@ function resetInactivityTimer() {
 
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
-    const response = await originalFetch(...args);
+    const [resource, options = {}] = args;
+    const url = typeof resource === 'string' ? resource : resource?.url;
+    const isApiRequest = typeof url === 'string' && url.startsWith(API_ORIGIN);
+    const requestOptions = isApiRequest
+        ? {...options, credentials: options.credentials || 'include'}
+        : options;
+
+    const response = await originalFetch(resource, requestOptions);
     resetInactivityTimer();
+
+    const isAuthRequest = typeof url === 'string' && url.includes('/auth/');
+    if (isApiRequest && response.status === 401 && !isAuthRequest && window.location.pathname !== '/login') {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
+    }
+
     return response;
 };
 
